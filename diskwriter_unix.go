@@ -5,6 +5,7 @@ package fsutil
 
 import (
 	"os"
+	"runtime"
 	"syscall"
 
 	"github.com/containerd/continuity/sysx"
@@ -18,7 +19,11 @@ func rewriteMetadata(p string, stat *types.Stat) error {
 	}
 
 	if err := os.Lchown(p, int(stat.Uid), int(stat.Gid)); err != nil {
-		return errors.WithStack(err)
+		if runtime.GOOS == "darwin" && os.Getuid() != 0 {
+			// slog.Warn("bypassing EPERM on darwin, user will remain the owner of the file", "path", p, "uid", stat.Uid, "gid", stat.Gid)
+		} else {
+			return errors.WithStack(err)
+		}
 	}
 
 	if os.FileMode(stat.Mode)&os.ModeSymlink == 0 {
